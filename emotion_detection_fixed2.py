@@ -1,16 +1,4 @@
-"""
-Accessibility Emotion Detection Application
-For Google Gemini 3 Hackathon (Feb 9, 2026)
 
-FIXED VERSION - Compatible with MediaPipe 0.10.30+
-
-This module provides algorithms for:
-1. Facial emotion detection using Gemini 3 API
-2. Body language analysis using MediaPipe
-3. Accessibility output generation for sensory disabilities
-
-Repository: https://github.com/in-a-quantum-world/Emotion-detection-
-"""
 
 import cv2
 import numpy as np
@@ -26,12 +14,9 @@ from mediapipe.tasks import python as mp_tasks
 from mediapipe.tasks.python import vision
 
 
-# ============================================================================
-# PART 1: DATA STRUCTURES
-# ============================================================================
 
 class Emotion(Enum):
-    """7 Universal emotions based on Ekman's research + neutral"""
+    
     HAPPY = "happiness"
     SAD = "sadness"
     ANGRY = "anger"
@@ -42,7 +27,6 @@ class Emotion(Enum):
 
 
 class PostureState(Enum):
-    """Body language states detected from pose"""
     OPEN_CONFIDENT = "open_confident"
     CLOSED_DEFENSIVE = "closed_defensive"
     ENGAGED_FORWARD = "engaged_forward"
@@ -52,7 +36,6 @@ class PostureState(Enum):
 
 @dataclass
 class EmotionResult:
-    """Result of emotion analysis"""
     primary_emotion: Emotion
     intensity: float  # 1-7 scale
     confidence: float  # 0-1
@@ -64,7 +47,6 @@ class EmotionResult:
 
 @dataclass
 class BodyLanguageResult:
-    """Result of body language analysis"""
     posture: PostureState
     lean_angle: float  # degrees, positive = forward
     shoulder_openness: float  # 0-1
@@ -75,22 +57,15 @@ class BodyLanguageResult:
 
 @dataclass
 class AccessibilityDescription:
-    """Accessibility output for different user needs"""
     for_deaf: str  # Describes auditory emotional cues
     for_blind: str  # Describes visual emotional cues
     for_autism: str  # Explicit emotion labeling with context
     overall_summary: str
 
 
-# ============================================================================
-# PART 2: BODY LANGUAGE ANALYSIS WITH NEW MEDIAPIPE API
-# ============================================================================
 
 class BodyLanguageAnalyzer:
-    """
-    Analyzes body language using MediaPipe Pose landmarks.
-    Updated for MediaPipe 0.10.30+ Tasks API.
-    """
+    
     
     def __init__(self):
         # Download model if needed - using the lite model for speed
@@ -108,22 +83,19 @@ class BodyLanguageAnalyzer:
         self.pose_landmarker = vision.PoseLandmarker.create_from_options(options)
     
     def _get_model_path(self) -> str:
-        """Download pose model if not present."""
         import urllib.request
         import os
         
         model_path = "pose_landmarker_lite.task"
         
         if not os.path.exists(model_path):
-            print("Downloading pose model...")
             url = "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task"
             urllib.request.urlretrieve(url, model_path)
-            print("Model downloaded!")
+            print("Model downloaded")
         
         return model_path
     
     def analyze(self, frame: np.ndarray) -> Optional[BodyLanguageResult]:
-        """Analyze body language from a video frame."""
         # Convert BGR to RGB
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         
@@ -201,7 +173,6 @@ class BodyLanguageAnalyzer:
         left_elbow, right_elbow,
         left_wrist, right_wrist
     ) -> str:
-        """Determine arm position state."""
         shoulder_mid = (left_shoulder + right_shoulder) / 2
         
         # Check if arms are crossed (wrists near opposite shoulders)
@@ -230,7 +201,6 @@ class BodyLanguageAnalyzer:
         lean_angle: float,
         arm_position: str
     ) -> PostureState:
-        """Classify body posture state."""
         # Forward lean with open shoulders = engaged
         if lean_angle > 5 and openness > 0.6:
             return PostureState.ENGAGED_FORWARD
@@ -255,7 +225,6 @@ class BodyLanguageAnalyzer:
 # ============================================================================
 
 class FaceDetector:
-    """Face detection using MediaPipe Tasks API."""
     
     def __init__(self):
         self.model_path = self._get_model_path()
@@ -269,14 +238,13 @@ class FaceDetector:
         self.detector = vision.FaceDetector.create_from_options(options)
     
     def _get_model_path(self) -> str:
-        """Download face detection model if not present."""
         import urllib.request
         import os
         
         model_path = "blaze_face_short_range.tflite"
         
         if not os.path.exists(model_path):
-            print("Downloading face detection model...")
+            #print("Downloading face detection model...")
             url = "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite"
             urllib.request.urlretrieve(url, model_path)
             print("Model downloaded!")
@@ -284,7 +252,6 @@ class FaceDetector:
         return model_path
     
     def detect_and_crop(self, frame: np.ndarray, padding: int = 30) -> Optional[np.ndarray]:
-        """Detect face and return cropped region."""
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
         
@@ -313,21 +280,13 @@ class FaceDetector:
         return None
 
 
-# ============================================================================
-# PART 4: GEMINI 3 API INTEGRATION
-# ============================================================================
-
 class GeminiEmotionAnalyzer:
-    """
-    Emotion analysis using Google Gemini 3 API.
-    """
+    
     
     def __init__(self, api_key: str):
-        """Initialize with Gemini API key."""
         try:
             from google import genai
             self.client = genai.Client(api_key=api_key)
-            # Use Gemini 3 Flash Preview for hackathon
             self.model_flash = "gemini-3-flash-preview"
         except ImportError:
             raise ImportError("Install google-genai: pip install google-genai")
@@ -337,9 +296,7 @@ class GeminiEmotionAnalyzer:
         image: np.ndarray,
         body_language: Optional[BodyLanguageResult] = None
     ) -> Tuple[EmotionResult, AccessibilityDescription]:
-        """
-        Analyze emotion from a face image using Gemini.
-        """
+        
         # Convert to JPEG for API
         _, buffer = cv2.imencode('.jpg', image, [cv2.IMWRITE_JPEG_QUALITY, 85])
         image_base64 = base64.b64encode(buffer).decode('utf-8')
@@ -404,7 +361,6 @@ Return ONLY valid JSON, no other text."""
             return self._default_result()
     
     def _parse_response(self, response_text: str) -> Tuple[EmotionResult, AccessibilityDescription]:
-        """Parse Gemini response into results."""
         try:
             # Extract JSON from response
             json_str = self._extract_json(response_text)
@@ -439,8 +395,6 @@ Return ONLY valid JSON, no other text."""
             return self._default_result()
     
     def _extract_json(self, text: str) -> str:
-        """Extract JSON from response text."""
-        # Remove markdown code blocks if present
         if "```json" in text:
             start = text.find("```json") + 7
             end = text.find("```", start)
@@ -459,7 +413,6 @@ Return ONLY valid JSON, no other text."""
         return text.strip()
     
     def _default_result(self) -> Tuple[EmotionResult, AccessibilityDescription]:
-        """Return default result when parsing fails."""
         return (
             EmotionResult(
                 primary_emotion=Emotion.NEUTRAL,
@@ -479,24 +432,18 @@ Return ONLY valid JSON, no other text."""
         )
 
 
-# ============================================================================
-# PART 5: COMPLETE PIPELINE
-# ============================================================================
 
 class AccessibilityEmotionPipeline:
-    """
-    Complete pipeline combining all components for accessibility app.
-    """
     
     def __init__(self, gemini_api_key: str):
-        print("Initializing pipeline...")
-        print("Loading Gemini analyzer...")
+        #print("Initializing pipeline...")
+        #print("Loading Gemini analyzer...")
         self.gemini = GeminiEmotionAnalyzer(gemini_api_key)
-        print("Loading body language analyzer...")
+        #print("Loading body language analyzer...")
         self.body_analyzer = BodyLanguageAnalyzer()
         print("Loading face detector...")
         self.face_detector = FaceDetector()
-        print("Pipeline ready!")
+        #print("Pipeline ready!")
         
         # Frame counter for batch processing
         self.frame_count = 0
@@ -507,9 +454,7 @@ class AccessibilityEmotionPipeline:
         frame: np.ndarray,
         analyze_every_n_frames: int = 15  # Analyze every N frames (reduce API calls)
     ) -> Optional[Dict]:
-        """
-        Process a video frame through the complete pipeline.
-        """
+        
         self.frame_count += 1
         
         # Always update body language (runs locally, fast)
@@ -539,17 +484,8 @@ class AccessibilityEmotionPipeline:
         return self.last_result
 
 
-# ============================================================================
-# PART 6: DEMO / TESTING
-# ============================================================================
 
 def demo_webcam(gemini_api_key: str):
-    """
-    Demo function to run emotion detection on webcam.
-    """
-    print("\n" + "="*50)
-    print("ACCESSIBILITY EMOTION DETECTION DEMO")
-    print("="*50 + "\n")
     
     pipeline = AccessibilityEmotionPipeline(gemini_api_key)
     
@@ -670,58 +606,48 @@ def demo_webcam(gemini_api_key: str):
             break
         elif key == ord('s'):
             force_analyze = True
-            print("\n[Forcing analysis on next frame...]")
+            print("\n[Forcing analysis on next frame]")
     
     cap.release()
     cv2.destroyAllWindows()
-    print("\nDemo ended.")
+    print("done")
 
 
 def test_installation():
-    """Test that all dependencies are installed correctly."""
-    print("Testing installation...")
     
     # Test MediaPipe
-    print("\n1. Testing MediaPipe...")
     try:
         import mediapipe as mp
-        print(f"   ✓ MediaPipe version: {mp.__version__}")
+        print(f"MediaPipe version: {mp.__version__}")
     except Exception as e:
-        print(f"   ✗ MediaPipe error: {e}")
+        print(f" MediaPipe error: {e}")
         return False
     
     # Test OpenCV
-    print("\n2. Testing OpenCV...")
     try:
         import cv2
-        print(f"   ✓ OpenCV version: {cv2.__version__}")
+        print(f" OpenCV version: {cv2.__version__}")
     except Exception as e:
-        print(f"   ✗ OpenCV error: {e}")
+        print(f" OpenCV error: {e}")
         return False
     
     # Test Google GenAI
-    print("\n3. Testing Google GenAI...")
     try:
         from google import genai
-        print(f"   ✓ Google GenAI installed")
+        print("successful")
     except Exception as e:
-        print(f"   ✗ Google GenAI error: {e}")
-        print("   Install with: pip install google-genai")
+        print(f" {e}")
         return False
     
     # Test webcam
-    print("\n4. Testing webcam...")
     cap = cv2.VideoCapture(0)
     if cap.isOpened():
-        print("   ✓ Webcam accessible")
+        print(" Webcam accessible")
         cap.release()
     else:
-        print("   ✗ Webcam not accessible")
+        print(" Webcam not accessible")
         return False
     
-    print("\n" + "="*50)
-    print("All tests passed! Ready to run.")
-    print("="*50)
     return True
 
 
@@ -735,12 +661,6 @@ if __name__ == "__main__":
             api_key = sys.argv[1]
             demo_webcam(api_key)
     else:
-        print("="*50)
-        print("ACCESSIBILITY EMOTION DETECTION")
-        print("="*50)
-        print("\nUsage:")
-        print("  python emotion_detection_fixed.py YOUR_GEMINI_API_KEY")
-        print("  python emotion_detection_fixed.py --test")
-        print("\nTo get a Gemini API key: https://ai.google.dev/")
-        print("\nRequired packages:")
-        print("  pip install google-genai mediapipe opencv-python numpy")
+        
+        print("no")
+
